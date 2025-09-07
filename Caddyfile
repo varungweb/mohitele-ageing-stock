@@ -1,0 +1,8 @@
+:80 {
+    route {
+        basicauth * {
+            {$CADDY_USER} {$CADDY_PASSWORD_HASH}
+        }
+        reverse_proxy react-app:3000
+    }
+}

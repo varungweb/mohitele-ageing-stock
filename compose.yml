@@ -4,8 +4,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    ports:
-      - "3000:3000"  # Maps port 80 from Nginx to localhost:3000
+    expose:
+      - "3000"  # internal only (not exposed outside)
     volumes:
       - "./index.js:/app/index.js"
     environment:
@@ -15,3 +15,14 @@ services:
       - DB_DATABASE=${DB_DATABASE}
       - DB_PORT=${DB_PORT}
     restart: unless-stopped
+
+  caddy:
+    image: caddy:2
+    container_name: caddy
+    ports:
+      - "3000:80"  # external access goes through Caddy
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+    environment:
+      - CADDY_USER=${CADDY_USER}
+      - CADDY_PASSWORD_HASH=${CADDY_PASSWORD_HASH}
