@@ -2,16 +2,17 @@
 const sql = require("mssql");
 
 const config = {
-  user: 'sa',
-password: 'Busy@123',
-server: 'vps.q2w.in',
-database: 'BusyComp0001_db12025',
-port: 14331,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  server: process.env.DB_SERVER,
+  database: process.env.DB_DATABASE,
+  port: parseInt(process.env.DB_PORT, 10),
   options: {
     encrypt: false, // set true if using Azure SQL
     trustServerCertificate: true, // needed for local dev/self-signed certs
   },
 };
+
 
 async function connectDB() {
   try {

@@ -1,71 +1,753 @@
+
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stock Ageing Table</title>
+    <title>Sales Data Table with Filters and Column Visibility</title>
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.dataTables.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-beta.1/dist/css/select2.min.css" rel="stylesheet" />
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-beta.1/dist/js/select2.min.js"></script>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 2em;
+        /* Sticky Header Style */
+        #salesTable th {
+            position: sticky;
+            top: 0;
+            background-color: #f1f1f1; /* Light grey */
+            z-index: 100; /* Ensure header stays above other table rows */
+        }
+        /* Styling for DataTables Scroll and Sticky Header */
+        .dataTables_scrollHead {
+            position: sticky;
+            top: 0;
+            background-color: #f1f1f1;
+            z-index: 103; /* Ensure header is above table body */
+        }
+        /* Sum Display (optional) */
+        #sumDisplay {
+            display: block;
+            text-align: center;
+            font-weight: bold;
+            margin: 10px 0;
+            font-size: 14px; /* Smaller font size for better spacing */
         }
 
-        table {
-            border-collapse: collapse;
+        
+        .dataTables_scrollBody {
+            overflow-x: auto;
+            overflow-y: auto;
+            /* Allow vertical scrolling */
+            max-width: 100%;
+            /* Ensure body takes full width of the table */
+            height: calc(100vh - 155px);
+            /* Dynamic height based on the screen size */
+            min-height: 300px;
+            /* Minimum height to avoid collapsing */
+        }
+
+        /*Style for the 3 dots menu */
+        .three-dots {
+            font-size: 30px;
+            cursor: pointer;
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 100;
+        }
+
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.8);
+        }
+
+        /* Modal Content (filters and column visibility) */
+        .modal-content {
+            background-color: #fefefe;
+            margin: 5% auto;
+            padding: 15px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 600px;
+            overflow-y: auto;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Red Cross Icon */
+        .close {
+            color: red;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        
+        .close:hover,
+        .close:focus {
+            color: darkred; /* Dark red color on hover */
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        /* Modal Filters Layout */
+        .filter-container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        #filters label {
+            font-weight: bold;
+        }
+
+        /* Style the checkbox list */
+        .checkbox-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); /* Grid layout for dynamic checkbox alignment */
+            gap: 15px;
+            justify-items: flex-start; /* Keep labels aligned to the left */
+            margin-top: 10px;
+        }
+
+        .checkbox-group label {
+            width: 100%; /* Ensure each checkbox label uses available space */
+        }
+
+        /* Mobile styles */
+        @media (max-width: 768px) {
+            #sumDisplay {
+                display:none;
+                position: fixed;
+                bottom: 5px; /* Adjust as needed for spacing from the bottom */
+                left: 50%;
+                transform: translateX(-50%); /* Center the sum display horizontally */
+                width: auto;
+                font-size: 10px; /* Ensure the font size is smaller for mobile */
+                background-color: rgba(255, 255, 255, 0.8); /* Optional: Add a slight background to improve visibility */
+                padding: 5px 10px;
+                border-radius: 5px;
+                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); /* Optional: Add shadow for better visibility */
+                z-index: 101; /* Make sure it's above other content */
+            }
+
+            .dataTables_scrollBody {
+                overflow-x: auto;
+                overflow-y: auto;
+                /* Allow vertical scrolling */
+                max-width: 100%;
+                /* Ensure body takes full width of the table */
+                height: calc(100vh - 270px);
+                /* Dynamic height based on the screen size */
+                min-height: 300px;
+                /* Minimum height to avoid collapsing */
+            }
+            
+            #salesTable {
+                font-size: 14px; /* Reduce font size */
+            }
+            #queryFilter{
+                display: none;
+            }
+
+            .modal-content {
+                width: 90%;
+                margin: 10px;
+                padding: 10px;
+            }
+
+            /* Split checkboxes into multiple columns in mobile view */
+            .checkbox-group {
+                grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); /* Adjust columns to fit smaller screens */
+                gap: 10px; /* Reduce gap between checkboxes */
+            }
+
+            /* Adjust spacing for labels */
+            #filters label {
+                font-size: 14px;
+            }
+
+            .checkbox-group label {
+                font-size: 14px;
+            }
+            .dataTables_length {
+                text-align: center;
+                width: 100%;
+                margin: 0 auto;
+            }
+        }
+
+        /* Loading Spinner */
+        #loadingIndicator {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+        }
+
+        .spinner {
+            border: 5px solid #f3f3f3; /* Light gray */
+            border-top: 5px solid #3498db; /* Blue */
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+
+        /* Animation for spinner */
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        /* Desktop view adjustments */
+        @media (min-width: 769px) {
+            /* Search box container: takes up 50% of the screen width */
+            .dataTables_filter {
+                width: 50%;
+                display: flex;
+                justify-content: center; /* Center the search box inside its half */
+            }
+            
+            #salesTable_wrapper{
+            flex-direction: column;
+            }
+
+            /* Show Entries container: takes up 50% of the screen width */
+            .dataTables_length {
+                width: 50%; /* This makes it take up 50% of the available space */
+                display: flex;
+                justify-content: center; /* Center the dropdown inside its half */
+            }
+            #queryFilter {
+                font-size: 16px;
+                cursor: pointer;
+                width: 30%;
+                position: absolute;
+                top: 30px;
+                left: 50%; /* Position the filter in the center */
+                transform: translateX(-50%); /* Offset by 50% of its own width to center it */
+                z-index: 101; /* Ensure it stays above other content */
+            }
+        }
+
+    </style>
+</head>
+<body>
+
+<!-- Include the header.html -->
+    <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sales Data Table with Filters and Column Visibility</title>
+    <style>
+        /* Style for the hamburger menu */
+        .hamburger {
+            font-size: 30px;
+            cursor: pointer;
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 100;
+        }
+
+        /* Sidebar styles */
+        .sidebar {
+            height: 100%;
+            width: 0;
+            position: fixed;
+            top: 0;
+            left: 0;
+            background-color: #111;
+            overflow-x: hidden;
+            transition: 0.5s;
+            padding-top: 60px;
+            z-index: 999;
+        }
+
+        .sidebar a {
+            padding: 8px 8px 8px 32px;
+            text-decoration: none;
+            font-size: 18px;
+            color: #818181;
+            display: block;
+            transition: 0.3s;
+        }
+
+        .sidebar a:hover {
+            color: #f1f1f1;
+        }
+
+        .sidebar .closebtn {
+            position: absolute;
+            top: 0;
+            right: 25px;
+            font-size: 36px;
+            margin-left: 50px;
+        }
+
+        /* Style for collapsible section */
+        .collapsible {
+            background-color: #111;
+            color: white;
+            padding: 8px 8px 8px 32px;
+            border: none;
+            text-align: left;
+            font-size: 18px;
+            cursor: pointer;
             width: 100%;
         }
 
-        th,
-        td {
-            border: 1px solid #ccc;
-            padding: 8px;
-            text-align: left;
+        .active, .collapsible:hover {
+            background-color: #444;
         }
 
-        th {
-            background: #f4f4f4;
+        .content {
+            padding: 0 8px 8px 32px;
+            display: none;
+            overflow: hidden;
+            background-color: #333;
         }
 
-        tr:nth-child(even) {
-            background: #fafafa;
+        /* Mobile styles */
+        @media (max-width: 768px) {
+            .hamburger {
+                display: block;
+            }
+        }
+
+        /* Desktop styles (show hamburger button) */
+        @media (min-width: 769px) {
+            .hamburger {
+                display: block;
+            }
         }
     </style>
 </head>
-
 <body>
-    <h2>Stock Ageing Data</h2>
-    <table id="stockTable">
-        <thead>
-            <tr id="tableHeader"></tr>
-        </thead>
-        <tbody id="tableBody"></tbody>
-    </table>
-    <script>
-        fetch('/api/stock-ageing')
-            .then(res => res.json())
-            .then(data => {
-                if (!Array.isArray(data) || data.length === 0) return;
-                const headerRow = document.getElementById('tableHeader');
-                const body = document.getElementById('tableBody');
-                // Set table headers
-                Object.keys(data[0]).forEach(key => {
-                    const th = document.createElement('th');
-                    th.textContent = key;
-                    headerRow.appendChild(th);
-                });
-                // Set table rows
-                data.forEach(row => {
-                    const tr = document.createElement('tr');
-                    Object.values(row).forEach(val => {
-                        const td = document.createElement('td');
-                        td.textContent = val;
-                        tr.appendChild(td);
-                    });
-                    body.appendChild(tr);
-                });
-            });
-    </script>
-</body>
 
+<!-- Sidebar Menu -->
+<div id="mySidebar" class="sidebar">
+    <a href="javascript:void(0)" class="closebtn" onclick="closeSidebar()">&times;</a>
+
+    <!-- Sales Links Group -->
+    <button class="collapsible">Sales Report</button>
+    <div class="content">
+        <a href="/ageing1/emi">Ageing1</a>
+        <a href="/ageing2/emi">Aeging2</a>
+        <a href="/netsale/emi">Net EMI</a>
+        <a href="/sales/emi">EMI</a>
+        <a href="/sales/main">Firm</a>
+        <a href="/select_dates/sales">Sales (Date)</a>
+    </div>
+
+    <!-- Firm Links Group -->
+    <!-- <button class="collapsible">Firm</button>
+    <div class="content">
+    </div> -->
+
+    <!-- Stock Links Group -->
+    <!-- <button class="collapsible">Stock</button>
+    <div class="content">
+    </div> -->
+
+    <!-- Items Links Group -->
+    <button class="collapsible">Others</button>
+    <div class="content">
+        <a href="/stock/emi">Stock</a>
+        <a href="/items/emi">Items</a>
+        <a href="/ledger/emi">Ledger</a>
+        <a href="/ledger2/emi">ClosingBal</a>
+        <a href="/Category/emi">Category</a>
+        <a href="/pivot3/emi">Catg Month</a>
+        <a href="/pivot4/emi">Catg Quarter</a>
+        <a href="/netsale/main">Net Firm</a>
+    </div>
+
+    <!-- View Links Group -->
+    <button class="collapsible">View Charts</button>
+    <div class="content">
+        <a href="/view/emi">Graph</a>
+        <a href="/view2/emi">Catg view</a>
+    </div>
+
+    <!-- Date Select Links Group -->
+    <button class="collapsible">Date Select</button>
+    <div class="content">
+        <a href="/select_dates/sales">Sales</a>
+        <a href="/select_dates/view">View</a>
+        <a href="/select_dates/purchase">Purchase</a>
+        <a href="/select_dates/pivot">Pivot</a>
+        <a href="/select_dates/pivot2">Pivot2</a>
+    </div>
+
+    <a href="/logout">Logout</a>
+</div>
+
+<!-- Hamburger Menu Icon -->
+<div class="hamburger" onclick="toggleSidebar()">?</div>
+
+<script>
+    // Function to toggle sidebar visibility
+    function toggleSidebar() {
+        document.getElementById("mySidebar").style.width = "250px";
+    }
+
+    // Function to close the sidebar
+    function closeSidebar() {
+        document.getElementById("mySidebar").style.width = "0";
+    }
+
+    // Collapsible functionality
+    // var coll = document.getElementsByClassName("collapsible");
+    // for (var i = 0; i < coll.length; i++) {
+    //     coll[i].addEventListener("click", function() {
+    //         this.classList.toggle("active");
+    //         var content = this.nextElementSibling;
+    //         if (content.style.display === "block") {
+    //             content.style.display = "none";
+    //         } else {
+    //             content.style.display = "block";
+    //         }
+    //     });
+    // }
+        // Collapsible functionality
+    var coll = document.getElementsByClassName("collapsible");
+    for (var i = 0; i < coll.length; i++) {
+        coll[i].addEventListener("click", function() {
+            this.classList.toggle("active");
+            var content = this.nextElementSibling;
+            if (content.style.display === "block") {
+                content.style.display = "none";
+                this.classList.add("collapsed"); // Reverts to black when collapsed
+            } else {
+                content.style.display = "block";
+                this.classList.remove("collapsed"); // Expands the section, keeps gray when active
+            }
+        });
+    }
+
+
+    // Close sidebar when clicking outside
+    $(window).on('click', function(event) {
+        const sidebar = document.getElementById('mySidebar');
+        if ($(event.target).is(sidebar)) {
+            closeSidebar();
+        }
+    });
+</script>
+
+</body>
+</html>
+
+
+<!-- 3 Dots Icon ? -->
+<div class="three-dots" onclick="toggleModal()">?</div>
+
+<div id="filterColumnModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeModal()">&times;</span>
+        
+        <!-- Filters Section -->
+        <div id="filters" class="filter-container"></div>
+
+        <!-- Column Visibility Section -->
+        <div id="columnVisibility" class="checkbox-group"></div>
+    </div>
+</div>
+<div id="sumDisplay"></div>
+
+    <!-- Query Filter Input -->
+    <input type="text" id="queryFilter" placeholder="Enter query (e.g., name: ``John Doe``)">
+
+<!-- Data Table -->
+<table id="salesTable" class="display responsive nowrap" style="width: 100%;">
+    <thead></thead>
+    <tbody></tbody>
+</table>
+
+<!-- Loading Indicator -->
+<div id="loadingIndicator">
+    <div class="spinner"></div>
+</div>
+
+<div id="errorMessage" style="display: none; color: red; text-align: center; margin: 20px;"></div>
+<script>
+    $(document).ready(function() {
+    $('#loadingIndicator').show(); // Show the loading indicator
+
+    const api_url = "/api/stock-ageing";
+    const includeFilters = JSON.parse('["SerialNo", "ITEMNAME", "Series", "GROP", "PGROP", "BGROP", "StartDate", "PhaseCount", "LifecycleStoryShort", "LifecycleStoryFull", "CurrentStock", "Suspected"]');
+    const defaultVisibleColumns = JSON.parse('["SerialNo", "ITEMNAME", "Series", "PGROP", "StartDate", "PhaseCount", "CurrentStock", "Suspected"]');
+    // ["SerialNo", "ITEMNAME", "Series", "GROP", "PGROP", "BGROP", "StartDate", "PhaseCount", "LifecycleStoryShort", "LifecycleStoryFull", "CurrentStock", "Suspected"]
+
+    const lengthMenu = JSON.parse('[[50, 100, 500, 1000, 2000, 5000, 10000, -1], [50, 100, 500, 1000, 2000, 5000, 10000, "All"]]');
+
+    const columnsToSum = JSON.parse('["Qty", "Amount", "Profit", "Profit2", "EXP", "PurchaseRate"]'); // replace with your actual column names
+    let columnSums = {};
+
+    $.ajax({
+        url: api_url,
+        method: 'GET',
+        timeout: 480000,
+        success: function(data) {
+            $('#loadingIndicator').hide(); // Hide loading indicator after data is loaded
+
+            if (data.length > 0) {
+                data.forEach((item, index) => {
+                    item.SerialNumber = index + 1; // Add SerialNumber key
+                });
+
+                const keys = Object.keys(data[0]).filter(key => key !== 'SerialNumber');
+                const columns = [{
+                    data: 'SerialNumber',
+                    title: 'Sn',
+                    visible: true
+                }].concat(
+                    keys.map(key => ({
+                        data: key,
+                        title: key.replace(/_/g, ' '),
+                        visible: defaultVisibleColumns.includes(key)
+                    }))
+                );
+
+                const table = $('#salesTable').DataTable({
+                    data: data,
+                    columns: columns,
+                    responsive: false,
+                    scrollX: true,       // Enable horizontal scrolling
+                    lengthMenu: lengthMenu,
+                    pageLength: 100,
+                    fixedHeader: true // Enable sticky header in DataTable
+                });
+
+                columns.forEach((col, index) => {
+                    if (col.data === 'SerialNumber') return;
+
+                    const isChecked = col.visible ? 'checked' : '';
+                    const checkbox = ` 
+                            <label>
+                                <input type="checkbox" class="toggle-column" data-column-index="${index}" ${isChecked}>
+                                ${col.title}
+                            </label>
+                        `;
+                    $('#columnVisibility').append(checkbox);
+                });
+
+                $('.toggle-column').on('change', function() {
+                    const columnIndex = $(this).data('column-index');
+                    const column = table.column(columnIndex);
+                    column.visible(!column.visible());
+                });
+
+                function populateFilters() {
+                    columns.forEach(col => {
+                        if (col.data === 'SerialNumber' || !includeFilters.includes(col.data)) return;
+
+                        const distinctValues = [...new Set(data.map(item => item[col.data]))];
+                        const filterHTML = `
+                                <label for="${col.data}Filter">${col.title}:</label>
+                                <select id="${col.data}Filter" class="column-filter" multiple>
+                                    <option value="">All</option>
+                                    ${distinctValues.map(value => `<option value="${value}">${value}</option>`).join('')}
+                                </select>
+                            `;
+                        $('#filters').append(filterHTML);
+                    });
+                }
+
+                populateFilters();
+
+                // Initialize Select2 for responsive, multiple selection
+                $('#filters select').select2({
+                    placeholder: 'Select an option',
+                    allowClear: true
+                });
+
+                $('.column-filter').on('change', function() {
+                    const columnIndex = columns.findIndex(col => col.data === this.id.replace('Filter', ''));
+                    const filterValues = $(this).val();
+                    if (filterValues && filterValues.length > 0) {
+                        table.column(columnIndex).search('^(' + filterValues.join('|') + ')$', true, false).draw();
+                    } else {
+                        table.column(columnIndex).search('').draw();
+                    }
+                });
+
+
+                function formatIndianNumber(num) {
+                    // Ensure the number is a string
+                    num = num.toString();
+
+                    // Separate the integer and decimal parts (if any)
+                    let [whole, decimal] = num.split('.');
+
+                    // If the whole part has 4 or more digits, add commas
+                    if (whole.length > 3) {
+                        let lastThree = whole.slice(-3); // Last 3 digits (thousands)
+                        let otherNumbers = whole.slice(0, whole.length - 3); // The remaining digits
+
+                        // Add commas every two digits for the other part of the whole number
+                        otherNumbers = otherNumbers.replace(/\B(?=(\d{2})+(?!\d))/g, ",");
+
+                        // Combine the whole part back together
+                        whole = otherNumbers + ',' + lastThree;
+                    }
+
+                    // Return the formatted number with the decimal part (if any)
+                    return decimal ? whole + '.' + decimal : whole;
+                }
+
+                // Function to calculate and display sum of filtered rows
+                function calculateAndDisplaySums() {
+                    columnSums = {};
+                    // Loop through the columns to sum
+                    columnsToSum.forEach(colName => {
+                        let columnIndex = columns.findIndex(col => col.data === colName);
+                        let columnData = table.column(columnIndex).data();
+
+                        // Get the sum of visible rows (filtered rows)
+                        let visibleData = table.rows({
+                            search: 'applied'
+                        }).data().pluck(colName);
+                        columnSums[colName] = visibleData.reduce((sum, value) => sum + (parseFloat(value) || 0), 0);
+                    });
+
+                    // Display the sums at the top of the page
+                    displaySums();
+                }
+
+                // Function to display the sum above the table
+                function displaySums() {
+                    let sumDisplay = '';
+                    columnsToSum.forEach(colName => {
+                        sumDisplay += `${colName}: ${formatIndianNumber(columnSums[colName].toFixed(2))}  |  `;
+                    });
+
+                    // Remove the last separator
+                    sumDisplay = sumDisplay.slice(0, -3);
+
+                    // Assuming there's a div to display the sums, you can use the following:
+                    $('#sumDisplay').html(sumDisplay);
+                }
+
+                // Trigger the sum calculation whenever the table is redrawn (after filter or any data change)
+                $('#salesTable').on('draw.dt', function() {
+                    calculateAndDisplaySums();
+                });
+
+                // Initial sum calculation
+                calculateAndDisplaySums();
+
+                                // Real-time Query Filter Handler
+                                $('#queryFilter').on('input', function() {
+                    const query = $(this).val().trim();
+                    applyFilters(table, query);
+                });
+
+                // Function to apply filters to the table based on the query
+                function applyFilters(table, query) {
+                    // Clear all previous filters
+                    table.columns().search('').draw();
+
+                    // If the query is empty, just return
+                    if (!query) return;
+
+                    // Parse the query and apply filters
+                    const filters = parseQuery(query);
+
+                    filters.forEach(filter => {
+                        const { column, values } = filter;
+
+                        // Find the column index
+                        const columnIndex = table.columns().indexes().toArray().find(index => 
+                            table.column(index).header().innerText.toLowerCase().includes(column.toLowerCase())
+                        );
+
+                        if (columnIndex !== undefined && values.length > 0) {
+                            // Build a regex pattern to match any of the values
+                            const regexPattern = `(${values.map(value => escapeRegex(value)).join('|')})`;
+                            table.column(columnIndex).search(regexPattern, true, false).draw(); // Use regex for OR logic
+                        }
+                    });
+                }
+
+                // Function to parse the query
+                function parseQuery(query) {
+                    const filters = [];
+
+                    // Match column:value pairs
+                    const regex = /(\w+):\(([^)]+)\)|(\w+):("[^"]+"|[^ ]+)/g;
+                    let match;
+
+                    while ((match = regex.exec(query)) !== null) {
+                        const column = match[1] || match[3];
+                        const valueString = match[2] || match[4];
+
+                        // Split values for OR logic, handle quoted strings
+                        const values = valueString
+                            .split(/\s*OR\s*/)
+                            .map(value => value.replace(/^"|"$/g, '').trim());
+
+                        filters.push({ column, values });
+                    }
+
+                    return filters;
+                }
+
+                // Function to escape special characters in regex
+                function escapeRegex(value) {
+                    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                }
+                // #a2edfc
+                // Handle row click to toggle highlight and bold text
+                $('#salesTable tbody').on('click', 'tr', function() {
+                $(this).toggleClass('selected'); // Toggle the 'selected' class on click
+            });
+
+            } else {
+                console.error('No data available.');
+                $('#salesTable').html('<p>No data available to display.</p>');
+            }
+        },
+        error: function(xhr, status, error) {
+            $('#loadingIndicator').hide();
+            console.error('Error fetching data:', error);
+            $('#salesTable').html('<p>Failed to load data. Please try again later.</p>');
+        }
+    });
+});
+
+// Function to toggle modal visibility
+function toggleModal() {
+    document.getElementById('filterColumnModal').style.display = "block";
+}
+
+// Function to close modal
+function closeModal() {
+    document.getElementById('filterColumnModal').style.display = "none";
+}
+
+// Close modal when clicking outside the modal content
+$(window).on('click', function(event) {
+    const modal = document.getElementById('filterColumnModal');
+    if ($(event.target).is(modal)) {
+        closeModal();
+    }
+});
+</script>
+</body>
 </html>

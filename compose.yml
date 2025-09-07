@@ -1,0 +1,17 @@
+services:
+  react-app:
+    container_name: viewer
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"  # Maps port 80 from Nginx to localhost:3000
+    volumes:
+      - "./index.js:/app/index.js"
+    environment:
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_SERVER=${DB_SERVER}
+      - DB_DATABASE=${DB_DATABASE}
+      - DB_PORT=${DB_PORT}
+    restart: unless-stopped
