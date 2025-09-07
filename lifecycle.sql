@@ -35,6 +35,7 @@ ItemData AS (
         (SELECT PGROP FROM ParentGroupCTE WHERE Code = (SELECT ParentGrp FROM Master1 WHERE Code = ItemCode)) AS PGROP,
         (SELECT BGROP FROM ParentGroupCTE WHERE Code = (SELECT ParentGrp FROM Master1 WHERE Code = ItemCode)) AS BGROP,
         Date,
+        VchType,
         CASE VchType
             WHEN 1 THEN 'transfer from PreviousYears stock'
             WHEN 2 THEN 'Purchased this year'
@@ -55,9 +56,19 @@ Numbered AS (
         d.PGROP,
         d.BGROP,
         d.Date,
+        d.VchType,
         d.LifeCyclePhase,
-        ROW_NUMBER() OVER (PARTITION BY d.CleanSerialNo ORDER BY d.Date) AS PhaseNo
+        ROW_NUMBER() OVER (PARTITION BY d.CleanSerialNo ORDER BY d.Date) AS PhaseNo,
+        ROW_NUMBER() OVER (PARTITION BY d.CleanSerialNo ORDER BY d.Date DESC) AS ReversePhaseNo
     FROM ItemData d
+),
+FinalStatus AS (
+    SELECT 
+        CleanSerialNo,
+        MAX(CASE WHEN ReversePhaseNo = 1 THEN LifeCyclePhase END) AS LastPhase,
+        MAX(CASE WHEN ReversePhaseNo = 1 THEN VchType END) AS LastVchType
+    FROM Numbered
+    GROUP BY CleanSerialNo
 )
 SELECT 
     n.CleanSerialNo AS SerialNo,
@@ -66,10 +77,17 @@ SELECT
     MAX(n.GROP) AS GROP,
     MAX(n.PGROP) AS PGROP,
     MAX(n.BGROP) AS BGROP,
+    MIN(n.Date) AS StartDate,   
+    COUNT(n.PhaseNo) AS PhaseCount,   
     STRING_AGG(
         CAST(n.PhaseNo AS VARCHAR(10)) + '. ' 
         + n.LifeCyclePhase + ' on ' + CONVERT(VARCHAR(10), n.Date, 120),
         CHAR(10)
-    ) WITHIN GROUP (ORDER BY n.PhaseNo) AS LifecycleStory
+    ) WITHIN GROUP (ORDER BY n.PhaseNo) AS LifecycleStory,
+    CASE 
+        WHEN f.LastVchType IN (9, 10) THEN 'Not in Stock'
+        ELSE 'In Stock'
+    END AS CurrentStock   -- ✅ New column
 FROM Numbered n
-GROUP BY n.CleanSerialNo
+JOIN FinalStatus f ON n.CleanSerialNo = f.CleanSerialNo
+GROUP BY n.CleanSerialNo, f.LastVchType;
