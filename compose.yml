@@ -20,7 +20,7 @@ services:
     image: caddy:2
     container_name: caddy
     ports:
-      - "3000:80"  # external access goes through Caddy
+      - "3039:80"  # external access goes through Caddy
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile
     environment:
