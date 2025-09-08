@@ -16,3 +16,21 @@ This project is a simple backend using Node.js, Express, and MySQL. It demonstra
 
 ## Test
 Visit `http://localhost:3000/test-db` to check if the backend can connect to MySQL.
+
+### Docker
+```
+sudo docker compose up -d --build
+sudo docker compose logs -f
+```
+
+### Login
+- User: varun
+- Password: varun123
+```
+http://localhost:3039
+```
+
+### sql 
+```bash
+AND LTRIM(RTRIM(SerialNo)) NOT IN (${ignoreSrSql})
+```
