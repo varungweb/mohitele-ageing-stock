@@ -62,7 +62,7 @@ app.get('/api/stock-ageing', async (req, res) => {
                 (SELECT BGROP FROM ParentGroupCTE WHERE Code = (SELECT ParentGrp FROM Master1 WHERE Code = ItemCode)) AS BGROP,
                 Date,
                 VchType,
-                Value1 AS MainQty,   -- ? MainQty include
+                Value1 AS MainQty,
                 -- Short name
                 CASE VchType
                     WHEN 1  THEN 'Prev'
@@ -105,17 +105,7 @@ app.get('/api/stock-ageing', async (req, res) => {
         FinalStatus AS (
             SELECT 
                 CleanSerialNo,
-                SUM(
-                    CASE 
-                        WHEN VchType IN (1,2,3) THEN 1      -- Prev, Pur, Ret ? always add
-                        WHEN VchType = 8 AND MainQty = 1 THEN 1  -- Jrn +1 ? add
-                        WHEN VchType = 8 AND MainQty = -1 THEN -1 -- Jrn -1 ? minus
-                        WHEN VchType = 9 AND MainQty = -1 THEN -1 -- Sale -1 ? minus
-                        WHEN VchType = 9 AND MainQty = 1 THEN 1 -- Sale -1 ? minus
-                        WHEN VchType IN (10) THEN -1     -- Sale, PRet ? minus
-                        ELSE 0
-                    END
-                ) AS NetStock,   -- ? net stock calculation
+                SUM(MainQty) AS NetStock,
                 MAX(CASE WHEN PhaseNo = 1 THEN VchType END) AS FirstVchType,
                 MAX(CASE WHEN PhaseNo = 1 THEN Date END) AS FirstDate
             FROM Numbered
@@ -145,6 +135,7 @@ app.get('/api/stock-ageing', async (req, res) => {
             MAX(n.PGROP) AS PGROP,
             MAX(n.BGROP) AS BGROP,
             MIN(n.Date) AS StartDate,
+            DATEDIFF(DAY, MIN(n.Date), GETDATE()) AS DaysSinceStart,
             COUNT(n.PhaseNo) AS PhaseCount,
             -- Short LifecycleStory
             STRING_AGG(
@@ -157,9 +148,10 @@ app.get('/api/stock-ageing', async (req, res) => {
                 CHAR(13) + CHAR(10)
             ) WITHIN GROUP (ORDER BY n.PhaseNo) AS LifecycleStoryFull,
             CASE 
+                WHEN f.NetStock > 0 AND n.CleanSerialNo IN (${ignoreSrSql}) THEN 'Ignored'
                 WHEN f.NetStock > 0 THEN 'In Stock'
                 ELSE 'Not in Stock'
-            END AS CurrentStock,   -- ? Net stock ?? final status
+            END AS CurrentStock,
             CASE 
                 WHEN f.FirstVchType IN (1,2) THEN 'No'
                 WHEN s.HasSameDayPurchaseAndSale = 1 THEN 'No'
