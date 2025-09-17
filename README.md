@@ -51,3 +51,12 @@ but here is catch
 if sale with 1 is also SalesReturn, 
 provide sql to check count of each
 ```
+
+```
+    CASE 
+	   WHEN f.NetStock > 0 AND MAX(n.Series) = 'Z DEFECTIVE' THEN 'Ignored'
+       WHEN f.NetStock > 0 AND MAX(n.C10) = 'ignore' THEN 'Ignored'
+	   WHEN f.NetStock > 0 THEN 'In Stock'
+       ELSE 'Not in Stock'
+    END AS CurrentStock,
+```
